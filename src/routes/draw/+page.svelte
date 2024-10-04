@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { boxes } from '$lib/boxes';
 	import {
 		Brush,
+		SquareDashed,
+		List,
 		Eraser,
 		MousePointer2,
 		SquareDashedMousePointer,
@@ -11,6 +14,9 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
+	import { Popover } from 'bits-ui';
+	import { special_characters } from '$lib/special_characters';
+	import { flyAndScale } from '$lib/fly_and_scale';
 
 	let width: number;
 	let height: number;
@@ -23,7 +29,7 @@
 	}
 
 	let selected: Array<number> | null = null;
-	let clipboard: string | null = null;
+	let clipboard: string = ' ';
 	let character: string = '-';
 	let character_input_selected: boolean = false;
 	let selected_tool: Tool = 'cursor';
@@ -32,6 +38,8 @@
 	let selection: null | Array<Array<number>> = null;
 	let hovered: Array<number> = [999, 999];
 	let is_selecting = false;
+	let char_popover_open = false;
+	let box_popover_open = false;
 
 	function clear_board() {
 		tiles = Array(height)
@@ -68,6 +76,31 @@
 				selection[1] = [x, y];
 			}
 			console.log(selection);
+		}
+	}
+
+	function box_selection(hl: string, vl: string, tr: string, tl: string, br: string, bl: string) {
+		if (!selection) return;
+
+		const [[startX, startY], [endX, endY]] = selection;
+		const minX = Math.min(startX, endX);
+		const maxX = Math.max(startX, endX);
+		const minY = Math.min(startY, endY);
+		const maxY = Math.max(startY, endY);
+
+		set(minX, minY, tl);
+		set(minX, maxY, tr);
+		set(maxX, minY, bl);
+		set(maxX, maxY, br);
+
+		for (let x = minX + 1; x < maxX; x++) {
+			set(x, minY, vl);
+			set(x, maxY, vl);
+		}
+
+		for (let y = minY + 1; y < maxY; y++) {
+			set(minX, y, hl);
+			set(maxX, y, hl);
 		}
 	}
 
@@ -179,6 +212,12 @@
 					clear_board();
 					event.preventDefault();
 					return;
+				} else if (event.key === 'j') {
+					if (selection) {
+						box_popover_open = true;
+					}
+					event.preventDefault();
+					return;
 				}
 			}
 
@@ -252,7 +291,7 @@
 	});
 </script>
 
-<div class="flex h-[100vh] w-[100vw] items-center {selected_tool} pointer-this">
+<div class="flex h-[100vh] w-[100vw] items-center {selected_tool} cursor-this">
 	<div
 		class="h-[{60 * height}] w-[{width * 36}px]
     mx-auto my-auto w-fit overflow-auto rounded-xl ring ring-2 ring-neutral-200"
@@ -291,7 +330,7 @@
 	</div>
 </div>
 
-<div class="fixed bottom-0 left-0 z-10 flex w-full items-center gap-4 bg-white p-8">
+<div class="cursor-this fixed bottom-0 left-0 z-10 flex w-full items-center gap-4 bg-white p-8">
 	<button
 		class="pointer rounded-2xl p-3 text-[24px]
     {character_input_selected ? 'bg-blue-300' : 'bg-neutral-200'}"
@@ -322,13 +361,12 @@
 	{#if selected_tool == 'select' || selected_tool == 'cursor'}
 		<button
 			on:click|preventDefault={() => {
-				if (selection) {
-					copy_selection();
-				}
+				copy_selection();
 			}}
 			disabled={!selection || !selected}
 			title="Copy selection (Ctrl+C)"
-			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
+      {!selection || !selected ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
 		>
 			<ClipboardCopy />
 		</button>
@@ -337,16 +375,51 @@
 	{#if selected_tool == 'cursor'}
 		<button
 			on:click|preventDefault={() => {
-				if (selection) {
+				if (selected) {
 					paste();
 				}
 			}}
 			disabled={!selected}
 			title="Paste (Ctrl+V)"
-			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
+      {!selected ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
 		>
 			<ClipboardPaste />
 		</button>
+	{/if}
+
+	{#if selected_tool == 'select'}
+		<Popover.Root bind:open={box_popover_open}>
+			<Popover.Trigger>
+				<button
+					disabled={!selection}
+					title="Box selection (Ctrl+J)"
+					class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
+      {!selection ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
+				>
+					<SquareDashed />
+				</button>
+			</Popover.Trigger>
+			<Popover.Content
+				transition={flyAndScale}
+				class="cursor-this z-30 h-full max-h-[400px] w-full max-w-[500px] overflow-auto rounded-2xl border border-neutral-200 bg-neutral-100 p-4 shadow"
+			>
+				<div class="grid grid-cols-3">
+					{#each boxes as { chars, name, preview }}
+						<button
+							on:click={() => {
+								box_selection(chars.hl, chars.vl, chars.tr, chars.tl, chars.br, chars.bl);
+								box_popover_open = false;
+							}}
+							class="pointer aspect-square rounded-xl p-1 text-center hover:bg-neutral-200/50"
+						>
+							<div class="text-center">{name}</div>
+							<pre>{preview}</pre>
+						</button>
+					{/each}
+				</div>
+			</Popover.Content>
+		</Popover.Root>
 	{/if}
 
 	<button
@@ -354,10 +427,39 @@
 			clear_board();
 		}}
 		title="Clear drawing (Ctrl+G)"
-		class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+		class="disabled:hover-bg-white pointer my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		<Trash2 />
 	</button>
+
+	<Popover.Root bind:open={char_popover_open}>
+		<Popover.Trigger>
+			<button
+				title="Special characters"
+				class="disabled:hover-bg-white pointer my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				<List />
+			</button>
+		</Popover.Trigger>
+		<Popover.Content
+			transition={flyAndScale}
+			class="cursor-this z-30 h-full max-h-[400px] w-full max-w-[500px] overflow-auto rounded-2xl border border-neutral-200 bg-neutral-100 p-4 shadow"
+		>
+			<div class="grid grid-cols-12">
+				{#each special_characters as char}
+					<button
+						on:click={() => {
+							character = char;
+							char_popover_open = false;
+						}}
+						class="pointer aspect-square rounded-xl p-1 text-center hover:bg-neutral-200/50"
+					>
+						{char}
+					</button>
+				{/each}
+			</div>
+		</Popover.Content>
+	</Popover.Root>
 </div>
 
 <style>
@@ -376,7 +478,10 @@
 	.pointer {
 		cursor: url('/pointer.png'), auto !important;
 	}
-	.pointer-this {
+	.cursor-this {
 		cursor: url('/cursor.png'), auto !important;
+	}
+	.cursor-not-allowed {
+		cursor: url('/cursor-not-allowed.png'), auto !important;
 	}
 </style>
