@@ -4,7 +4,8 @@
 		Eraser,
 		MousePointer2,
 		SquareDashedMousePointer,
-		ClipboardCopy
+		ClipboardCopy,
+		Trash2
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -16,9 +17,7 @@
 	$: {
 		width = parseInt($page.url.searchParams.get('width') || '30');
 		height = parseInt($page.url.searchParams.get('height') || '18');
-		tiles = Array(height)
-			.fill(null)
-			.map(() => Array(width).fill(' '));
+		clear_board();
 	}
 
 	let selected: Array<number> | null = null;
@@ -29,6 +28,13 @@
 	type Tool = 'brush' | 'cursor' | 'eraser' | 'select';
 	let is_mouse_down = false;
 	let selection: null | Array<Array<number>> = null;
+	let hovered: Array<number> = [0, 0];
+
+	function clear_board() {
+		tiles = Array(height)
+			.fill(null)
+			.map(() => Array(width).fill(' '));
+	}
 
 	function click(x: number, y: number) {
 		character_input_selected = false;
@@ -152,6 +158,10 @@
 					change_tool('select');
 					event.preventDefault();
 					return;
+				} else if (event.key === 'g') {
+					clear_board();
+					event.preventDefault();
+					return;
 				}
 			}
 
@@ -235,6 +245,7 @@
 				{#each row as tile, y}
 					<button
 						on:mouseenter={() => {
+							hovered = [x, y];
 							if (is_mouse_down) {
 								click(x, y);
 							}
@@ -247,7 +258,9 @@
 						class="my-auto h-full w-full text-center text-6xl hover:bg-neutral-200
           {selected && x === selected[0] && y === selected[1]
 							? 'bg-blue-400 hover:!bg-blue-300'
-							: 'bg-neutral-100'}
+							: x == hovered[0] || y == hovered[1]
+								? 'bg-neutral-200/50'
+								: 'bg-neutral-100'}
           {isInSelection(x, y) ? '!bg-blue-300/30 hover:!bg-blue-300/40' : ''}"
 					>
 						<pre>{tile}</pre>
@@ -292,10 +305,20 @@
 				copy_selection();
 			}
 		}}
-		disabled={!selection}
+		disabled={!selection || !selected}
 		title="Copy selection. (Ctrl+C)"
 		class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		<ClipboardCopy />
+	</button>
+
+	<button
+		on:click|preventDefault={() => {
+			clear_board();
+		}}
+		title="Clear drawing (Ctrl+G)"
+		class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+	>
+		<Trash2 />
 	</button>
 </div>

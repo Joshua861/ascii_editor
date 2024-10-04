@@ -5,7 +5,7 @@
 		height = 18;
 </script>
 
-<div class="flex h-[100vh] w-[100vw] items-center">
+<div class="flex h-[100vh] w-[100vw] items-center sm:text-2xl">
 	<div class="mx-auto w-fit">
 		<pre>+----------------------------+
 |                            |
@@ -13,9 +13,13 @@
 |                            |
 |  Draw ascii art with ease. |
 |                            |
-|  Width:  <input class="w-[96px] text-left outline-none" bind:value={width} type="text" />        |
+|  Width:  <input
+				class="w-[96px] text-left outline-none sm:w-[144px]"
+				bind:value={width}
+				type="text"
+			/>        |
 |  Height: <input
-				class="w-[96px] text-left outline-none"
+				class="w-[96px] text-left outline-none sm:w-[144px]"
 				bind:value={height}
 				type="text"
 			/>        |
@@ -32,4 +36,5 @@
 |                            |
 +----------------------------+</pre>
 	</div>
+	<pre class="font-2xl">s</pre>
 </div>
