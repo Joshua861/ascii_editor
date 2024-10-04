@@ -4,11 +4,13 @@
 		Eraser,
 		MousePointer2,
 		SquareDashedMousePointer,
+		ClipboardPaste,
 		ClipboardCopy,
 		Trash2
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { toast } from 'svelte-sonner';
 
 	let width: number;
 	let height: number;
@@ -28,7 +30,8 @@
 	type Tool = 'brush' | 'cursor' | 'eraser' | 'select';
 	let is_mouse_down = false;
 	let selection: null | Array<Array<number>> = null;
-	let hovered: Array<number> = [0, 0];
+	let hovered: Array<number> = [999, 999];
+	let is_selecting = false;
 
 	function clear_board() {
 		tiles = Array(height)
@@ -41,7 +44,6 @@
 		is_mouse_down = true;
 
 		console.log(x, y);
-		console.log(selection);
 
 		if (selected_tool == 'cursor') {
 			if (selected === null || selected[0] != x || selected[1] != y) {
@@ -56,11 +58,12 @@
 			selected = null;
 			set(x, y, ' ');
 		} else if (selected_tool == 'select') {
-			if (!selection) {
+			if (!is_selecting) {
 				selection = [
 					[x, y],
 					[x, y]
 				];
+				is_selecting = true;
 			} else {
 				selection[1] = [x, y];
 			}
@@ -73,6 +76,7 @@
 	}
 
 	function set(x, y, value) {
+		if (x < 0 || x >= height || y < 0 || y >= width) return;
 		tiles[x][y] = value;
 	}
 
@@ -93,12 +97,17 @@
 				string += row + '\n';
 			}
 			navigator.clipboard.writeText(string);
+			toast.success('Copied selection to clipboard');
 			return;
 		}
 
 		if (selected) {
 			clipboard = get(selected[0], selected[1]);
 		}
+	}
+
+	function paste() {
+		set(selected[0], selected[1], clipboard);
 	}
 
 	function isInSelection(x: number, y: number): boolean {
@@ -115,17 +124,23 @@
 		selected_tool = tool;
 		selected = null;
 		character_input_selected = false;
+		if (tool !== 'select') {
+			selection = null;
+			is_selecting = false;
+		}
 	}
 
 	onMount(() => {
 		addEventListener('mousedown', (event) => {
 			if (event.button === 0) {
 				is_mouse_down = true;
-				selection = null;
 			}
 		});
 		addEventListener('mouseup', (event) => {
 			is_mouse_down = false;
+			if (selected_tool === 'select' && is_selecting) {
+				is_selecting = false;
+			}
 		});
 		addEventListener('keydown', (event) => {
 			console.log(event.key);
@@ -134,6 +149,8 @@
 				event.preventDefault();
 				selected = null;
 				character_input_selected = false;
+				selection = null;
+				is_selecting = false;
 				return;
 			}
 
@@ -219,7 +236,7 @@
 
 				if (selected && event.ctrlKey && event.key === 'v') {
 					event.preventDefault();
-					set(selected[0], selected[1], clipboard);
+					paste();
 					return;
 				}
 
@@ -235,7 +252,7 @@
 	});
 </script>
 
-<div class="flex h-[100vh] w-[100vw] items-center">
+<div class="flex h-[100vh] w-[100vw] items-center {selected_tool} pointer-this">
 	<div
 		class="h-[{60 * height}] w-[{width * 36}px]
     mx-auto my-auto w-fit overflow-auto rounded-xl ring ring-2 ring-neutral-200"
@@ -249,6 +266,9 @@
 							if (is_mouse_down) {
 								click(x, y);
 							}
+						}}
+						on:mouseleave={() => {
+							hovered = [-1, -1];
 						}}
 						on:mousedown={(event) => {
 							if (event.button === 0) {
@@ -273,7 +293,7 @@
 
 <div class="fixed bottom-0 left-0 z-10 flex w-full items-center gap-4 bg-white p-8">
 	<button
-		class="rounded-2xl p-3 text-[24px]
+		class="pointer rounded-2xl p-3 text-[24px]
     {character_input_selected ? 'bg-blue-300' : 'bg-neutral-200'}"
 		on:click|preventDefault={() => {
 			character_input_selected = !character_input_selected;
@@ -289,7 +309,7 @@
 				change_tool(tool);
 			}}
 			title="{tool} ({keybind})"
-			class="my-auto rounded-2xl p-4 {selected_tool === tool
+			class="pointer my-auto rounded-2xl p-4 {selected_tool === tool
 				? 'bg-neutral-200'
 				: 'hover:bg-neutral-100'}"
 		>
@@ -299,18 +319,35 @@
 
 	<div class="flex-1"></div>
 
-	<button
-		on:click|preventDefault={() => {
-			if (selection) {
-				copy_selection();
-			}
-		}}
-		disabled={!selection || !selected}
-		title="Copy selection. (Ctrl+C)"
-		class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-	>
-		<ClipboardCopy />
-	</button>
+	{#if selected_tool == 'select' || selected_tool == 'cursor'}
+		<button
+			on:click|preventDefault={() => {
+				if (selection) {
+					copy_selection();
+				}
+			}}
+			disabled={!selection || !selected}
+			title="Copy selection (Ctrl+C)"
+			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			<ClipboardCopy />
+		</button>
+	{/if}
+
+	{#if selected_tool == 'cursor'}
+		<button
+			on:click|preventDefault={() => {
+				if (selection) {
+					paste();
+				}
+			}}
+			disabled={!selected}
+			title="Paste (Ctrl+V)"
+			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			<ClipboardPaste />
+		</button>
+	{/if}
 
 	<button
 		on:click|preventDefault={() => {
@@ -322,3 +359,24 @@
 		<Trash2 />
 	</button>
 </div>
+
+<style>
+	.cursor * {
+		cursor: url('/cursor.png'), auto !important;
+	}
+	.brush * {
+		cursor: url('/brush.png'), auto !important;
+	}
+	.eraser * {
+		cursor: url('/eraser.png'), auto !important;
+	}
+	.select * {
+		cursor: url('/cursor.png'), auto !important;
+	}
+	.pointer {
+		cursor: url('/pointer.png'), auto !important;
+	}
+	.pointer-this {
+		cursor: url('/cursor.png'), auto !important;
+	}
+</style>
