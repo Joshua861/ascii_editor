@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { boxes } from '$lib/boxes';
 	import {
+		PaintBucket,
 		Upload,
 		Brush,
 		SquareDashed,
@@ -202,7 +203,7 @@
 		}
 	}
 
-	function clear_selection() {
+	function fill_selection(char: string, action: string = 'Filled') {
 		if (selection) {
 			const [[startX, startY], [endX, endY]] = selection;
 			const minX = Math.min(startX, endX);
@@ -212,16 +213,20 @@
 
 			for (let x = minX; x <= maxX; x++) {
 				for (let y = minY; y <= maxY; y++) {
-					set(x, y, ' ');
+					set(x, y, char);
 				}
 			}
 
-			toast.success('Cleared selection.');
+			toast.success(action + ' selection.');
 			selection = null;
 			is_selecting = false;
 		} else if (selected) {
-			set(selected[0], selected[1], ' ');
+			set(selected[0], selected[1], char);
 		}
+	}
+
+	function clear_selection() {
+		fill_selection(' ', 'Cleared');
 	}
 
 	function paste_selection() {
@@ -337,6 +342,10 @@
 				} else if (event.key === 'x') {
 					event.preventDefault();
 					cut_selection();
+					return;
+				} else if (event.key === 'y') {
+					event.preventDefault();
+					fill_selection(character);
 					return;
 				}
 			}
@@ -539,16 +548,6 @@
 
 		<TooltipButton
 			onClick={() => {
-				cut_selection();
-			}}
-			disabled={!selection && !selected}
-			tooltip="Copy selection (Ctrl+C)"
-		>
-			<Scissors />
-		</TooltipButton>
-
-		<TooltipButton
-			onClick={() => {
 				clear_selection();
 			}}
 			disabled={!selection && !selected}
@@ -559,6 +558,26 @@
 	{/if}
 
 	{#if selected_tool == 'select'}
+		<TooltipButton
+			onClick={() => {
+				cut_selection();
+			}}
+			disabled={!selection}
+			tooltip="Copy selection (Ctrl+C)"
+		>
+			<Scissors />
+		</TooltipButton>
+
+		<TooltipButton
+			onClick={() => {
+				fill_selection(character);
+			}}
+			disabled={!selection}
+			tooltip="Fill selection (Ctrl+Y)"
+		>
+			<PaintBucket />
+		</TooltipButton>
+
 		<Popover.Root bind:open={box_popover_open}>
 			<Popover.Trigger>
 				<TooltipButton disabled={!selection} tooltip="Box selection (Ctrl+J)">
@@ -579,7 +598,7 @@
 							class="pointer aspect-square rounded-xl p-1 text-center hover:bg-neutral-200/50"
 						>
 							<div class="text-center">{name}</div>
-							<pre>{preview}</pre>
+							<pre class="leading-none">{preview}</pre>
 						</button>
 					{/each}
 				</div>

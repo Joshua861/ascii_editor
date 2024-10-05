@@ -67,9 +67,9 @@ export const boxes = [
 			bl: '·',
 			br: '·',
 			hl: '·',
-			vl: '·'
+			vl: ':'
 		},
-		preview: `·····\n·   ·\n·   ·\n·····`
+		preview: `·····\n:   :\n:   :\n·····`
 	},
 	{
 		name: 'ASCII',
