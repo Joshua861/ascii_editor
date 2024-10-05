@@ -1,18 +1,13 @@
 # Help
 
-The little character at the bottom left of the screen is your currently selected
-character. By default it is '-'. You can change it by clicking on it, or pressing
-Ctrl+F. You can see the keybinds for each button by hovering over it.
+On the bottom of the screen is the toolbar. It contains the 4 tools on the left, as well as the button to change your selected character, and any other operations you can do on the left. These operations change depending on what tool you are using. Hover over them to see what they do and what the keybind for them is.
 
-The first tool is the cursor. Click on a tile to select it. When one is selected,
-you can use the arrow keys to move the cursor around. You can press backspace to
-delete the selected character, and move back one. If you press any other character,
-it will change the selected tile to that character.
+There are currently 4 tools:
 
-Brush paints the selected character. Eraser pains the space character.
-
-The selection tool can be used to export your drawing. Select everything you want
-to copy, and press Ctrl+C, or use the copy button at the bottom right.
+- Cursor: Allows you to select a single tile at once, and set it to some character, and write words. You can copy and paste single characters while in cursor mode.
+- Brush: Paints the currently selected character.
+- Eraser: Paints the space character (just an eraser).
+- Selector: Allows you to select an area of tiles. When its selected, you can cut, paste, copy, and clear the tiles inside it. You can also draw a box around it.
 
 <div class="flex">
 <div class="flex-1" />

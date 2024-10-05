@@ -48,18 +48,6 @@ export const boxes = [
 		preview: `╔═══╗\n║   ║\n║   ║\n╚═══╝`
 	},
 	{
-		name: 'Chat bubble',
-		chars: {
-			tr: '╮',
-			tl: '╭',
-			bl: '└',
-			br: '╯',
-			hl: '─',
-			vl: '│'
-		},
-		preview: `╭───╮\n│   │\n│   │\n└───╯`
-	},
-	{
 		name: 'Thick',
 		chars: {
 			tr: '┓',
