@@ -24,7 +24,7 @@ export const boxes = [
 		preview: `┌───┐\n│   │\n│   │\n└───┘`
 	},
 	{
-		name: 'Retro',
+		name: 'Cowsay',
 		chars: {
 			tr: '+',
 			tl: '+',
@@ -46,6 +46,18 @@ export const boxes = [
 			vl: '║'
 		},
 		preview: `╔═══╗\n║   ║\n║   ║\n╚═══╝`
+	},
+	{
+		name: 'Chat bubble',
+		chars: {
+			tr: '╮',
+			tl: '╭',
+			bl: '└',
+			br: '╯',
+			hl: '─',
+			vl: '│'
+		},
+		preview: `╭───╮\n│   │\n│   │\n└───╯`
 	},
 	{
 		name: 'Thick',

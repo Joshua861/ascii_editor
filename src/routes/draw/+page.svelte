@@ -1,15 +1,20 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { boxes } from '$lib/boxes';
 	import {
+		Upload,
 		Brush,
 		SquareDashed,
 		List,
 		Eraser,
 		MousePointer2,
+		Home,
 		SquareDashedMousePointer,
 		ClipboardPaste,
 		ClipboardCopy,
-		Trash2
+		Trash2,
+		Scissors,
+		OctagonX
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -17,6 +22,8 @@
 	import { Popover } from 'bits-ui';
 	import { special_characters } from '$lib/special_characters';
 	import { flyAndScale } from '$lib/fly_and_scale';
+	import TooltipButton from '$lib/tooltip_button.svelte';
+	import Dialog from '$lib/dialog.svelte';
 
 	let width: number;
 	let height: number;
@@ -40,6 +47,8 @@
 	let is_selecting = false;
 	let char_popover_open = false;
 	let box_popover_open = false;
+	let export_string = '';
+	let show_export_popup = false;
 
 	function clear_board() {
 		tiles = Array(height)
@@ -79,6 +88,11 @@
 		}
 	}
 
+	function open_export_popup() {
+		export_string = export_selection();
+		show_export_popup = true;
+	}
+
 	function box_selection(hl: string, vl: string, tr: string, tl: string, br: string, bl: string) {
 		if (!selection) return;
 
@@ -113,7 +127,9 @@
 		tiles[x][y] = value;
 	}
 
-	function copy_selection() {
+	let select_clipboard: string[][] = [['']];
+
+	function export_selection(): string {
 		if (selection) {
 			const [[startX, startY], [endX, endY]] = selection;
 			const minX = Math.min(startX, endX);
@@ -129,18 +145,112 @@
 				}
 				string += row + '\n';
 			}
-			navigator.clipboard.writeText(string);
-			toast.success('Copied selection to clipboard');
+
+			return string;
+		}
+
+		return '';
+	}
+
+	function copy_selection() {
+		if (selection) {
+			const [[startX, startY], [endX, endY]] = selection;
+			const minX = Math.min(startX, endX);
+			const maxX = Math.max(startX, endX);
+			const minY = Math.min(startY, endY);
+			const maxY = Math.max(startY, endY);
+
+			let to_copy: string[][] = [];
+			for (let x = minX; x <= maxX; x++) {
+				let row: string[] = [];
+				for (let y = minY; y <= maxY; y++) {
+					row.push(get(x, y));
+				}
+				to_copy.push(row);
+			}
+
+			select_clipboard = to_copy;
+			toast.success('Copied selection.');
+			console.log(to_copy);
 			return;
 		}
 
 		if (selected) {
 			clipboard = get(selected[0], selected[1]);
+			toast.success('Copied character.');
 		}
 	}
 
-	function paste() {
-		set(selected[0], selected[1], clipboard);
+	function cut_selection() {
+		if (selection) {
+			copy_selection();
+			const [[startX, startY], [endX, endY]] = selection;
+			const minX = Math.min(startX, endX);
+			const maxX = Math.max(startX, endX);
+			const minY = Math.min(startY, endY);
+			const maxY = Math.max(startY, endY);
+
+			for (let x = minX; x <= maxX; x++) {
+				for (let y = minY; y <= maxY; y++) {
+					set(x, y, ' ');
+				}
+			}
+
+			toast.success('Cut selection.');
+			selection = null;
+			is_selecting = false;
+		}
+	}
+
+	function clear_selection() {
+		if (selection) {
+			const [[startX, startY], [endX, endY]] = selection;
+			const minX = Math.min(startX, endX);
+			const maxX = Math.max(startX, endX);
+			const minY = Math.min(startY, endY);
+			const maxY = Math.max(startY, endY);
+
+			for (let x = minX; x <= maxX; x++) {
+				for (let y = minY; y <= maxY; y++) {
+					set(x, y, ' ');
+				}
+			}
+
+			toast.success('Cleared selection.');
+			selection = null;
+			is_selecting = false;
+		} else if (selected) {
+			set(selected[0], selected[1], ' ');
+		}
+	}
+
+	function paste_selection() {
+		if (selected_tool == 'cursor' && selected) {
+			set(selected[0], selected[1], clipboard);
+			toast.success('Pasted character.');
+		} else if (selected_tool == 'select') {
+			let x, y;
+			if (hovered[0] == 999 && hovered[1] == 999) {
+				if (selected) {
+					[x, y] = selected;
+				} else if (selection) {
+					[x, y] = selection[0];
+				} else {
+					[x, y] = hovered;
+				}
+			} else {
+				[x, y] = hovered;
+			}
+			console.log(x, y);
+			for (let i = 0; i < select_clipboard.length; i++) {
+				for (let j = 0; j < select_clipboard[i].length; j++) {
+					if (x + i < height && y + j < width) {
+						set(x + i, y + j, select_clipboard[i][j]);
+					}
+				}
+			}
+			toast.success('Pasted selection.');
+		}
 	}
 
 	function isInSelection(x: number, y: number): boolean {
@@ -187,6 +297,12 @@
 				return;
 			}
 
+			if (event.shiftKey && event.ctrlKey && event.key == 'C') {
+				event.preventDefault();
+				open_export_popup();
+				return;
+			}
+
 			if (event.ctrlKey) {
 				if (event.key === 'b') {
 					change_tool('brush');
@@ -217,6 +333,10 @@
 						box_popover_open = true;
 					}
 					event.preventDefault();
+					return;
+				} else if (event.key === 'x') {
+					event.preventDefault();
+					cut_selection();
 					return;
 				}
 			}
@@ -252,6 +372,13 @@
 				}
 			}
 
+			if (
+				((selected_tool == 'select' && selection) || (selected_tool == 'cursor' && selected)) &&
+				event.key == 'Delete'
+			) {
+				clear_selection();
+			}
+
 			if (character_input_selected && event.key.length === 1) {
 				character = event.key;
 				character_input_selected = false;
@@ -259,24 +386,37 @@
 			}
 
 			if (selected_tool == 'select') {
-				if (selection && event.key === 'c' && event.ctrlKey) {
-					event.preventDefault();
-					copy_selection();
-					return;
+				if (selection && event.ctrlKey) {
+					if (event.key === 'c') {
+						event.preventDefault();
+						copy_selection();
+						return;
+					} else if (event.key === 'x') {
+						event.preventDefault();
+						cut_selection();
+						return;
+					}
+				}
+				if (event.ctrlKey) {
+					if (event.key === 'v') {
+						event.preventDefault();
+						paste_selection();
+						return;
+					}
 				}
 			}
 
 			if (selected_tool == 'cursor') {
-				if (selected && event.ctrlKey && event.key === 'c') {
-					event.preventDefault();
-					copy_selection();
-					return;
-				}
-
-				if (selected && event.ctrlKey && event.key === 'v') {
-					event.preventDefault();
-					paste();
-					return;
+				if (selected && event.ctrlKey) {
+					if (event.key === 'c') {
+						event.preventDefault();
+						copy_selection();
+						return;
+					} else if (event.key === 'v') {
+						event.preventDefault();
+						paste_selection();
+						return;
+					}
 				}
 
 				if (selected && event.key.length === 1) {
@@ -290,6 +430,26 @@
 		});
 	});
 </script>
+
+<TooltipButton
+	onClick={() => {
+		goto('/');
+	}}
+	title="Back to home"
+	className="top-4 left-4 fixed"
+>
+	<Home />
+</TooltipButton>
+
+<TooltipButton
+	onClick={() => {
+		open_export_popup();
+	}}
+	title="Export selection (Ctrl+Shift+C)"
+	className="top-4 right-4 fixed"
+>
+	<Upload />
+</TooltipButton>
 
 <div class="flex h-[100vh] w-[100vw] items-center {selected_tool} cursor-this">
 	<div
@@ -307,7 +467,7 @@
 							}
 						}}
 						on:mouseleave={() => {
-							hovered = [-1, -1];
+							hovered = [999, 999];
 						}}
 						on:mousedown={(event) => {
 							if (event.button === 0) {
@@ -331,74 +491,79 @@
 </div>
 
 <div class="cursor-this fixed bottom-0 left-0 z-10 flex w-full items-center gap-4 bg-white p-8">
-	<button
-		class="pointer rounded-2xl p-3 text-[24px]
-    {character_input_selected ? 'bg-blue-300' : 'bg-neutral-200'}"
-		on:click|preventDefault={() => {
+	<TooltipButton
+		noClass
+		className="pointer rounded-2xl p-3 text-[24px]
+    {character_input_selected ? '!bg-blue-300' : '!bg-neutral-200'}"
+		onClick={() => {
 			character_input_selected = !character_input_selected;
 		}}
-		title="Change character. (Ctrl+F)"
+		tooltip="Change character. (Ctrl+F)"
 	>
 		<pre>{character}</pre>
-	</button>
+	</TooltipButton>
 
 	{#each [['cursor', MousePointer2, 'Ctrl+D'], ['brush', Brush, 'Ctrl+B'], ['eraser', Eraser, 'Ctrl+E'], ['select', SquareDashedMousePointer, 'Ctrl+R']] as [tool, icon, keybind]}
-		<button
-			on:click|preventDefault={() => {
+		<TooltipButton
+			onClick={() => {
 				change_tool(tool);
 			}}
-			title="{tool} ({keybind})"
-			class="pointer my-auto rounded-2xl p-4 {selected_tool === tool
-				? 'bg-neutral-200'
-				: 'hover:bg-neutral-100'}"
+			tooltip="{tool} ({keybind})"
+			className={selected_tool === tool ? 'bg-neutral-200' : 'hover:bg-neutral-100'}
 		>
 			<svelte:component this={icon} />
-		</button>
+		</TooltipButton>
 	{/each}
 
 	<div class="flex-1"></div>
 
 	{#if selected_tool == 'select' || selected_tool == 'cursor'}
-		<button
-			on:click|preventDefault={() => {
+		<TooltipButton
+			onClick={() => {
 				copy_selection();
 			}}
-			disabled={!selection || !selected}
-			title="Copy selection (Ctrl+C)"
-			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
-      {!selection || !selected ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
+			disabled={!selection && !selected}
+			tooltip="Copy selection (Ctrl+C)"
 		>
 			<ClipboardCopy />
-		</button>
-	{/if}
+		</TooltipButton>
 
-	{#if selected_tool == 'cursor'}
-		<button
-			on:click|preventDefault={() => {
-				if (selected) {
-					paste();
-				}
+		<TooltipButton
+			onClick={() => {
+				paste_selection();
 			}}
-			disabled={!selected}
-			title="Paste (Ctrl+V)"
-			class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
-      {!selected ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
+			tooltip="Paste (Ctrl+V)"
 		>
 			<ClipboardPaste />
-		</button>
+		</TooltipButton>
+
+		<TooltipButton
+			onClick={() => {
+				cut_selection();
+			}}
+			disabled={!selection && !selected}
+			tooltip="Copy selection (Ctrl+C)"
+		>
+			<Scissors />
+		</TooltipButton>
+
+		<TooltipButton
+			onClick={() => {
+				clear_selection();
+			}}
+			disabled={!selection && !selected}
+			tooltip="Clear selection (Delete)"
+		>
+			<OctagonX />
+		</TooltipButton>
 	{/if}
 
 	{#if selected_tool == 'select'}
 		<Popover.Root bind:open={box_popover_open}>
 			<Popover.Trigger>
-				<button
-					disabled={!selection}
-					title="Box selection (Ctrl+J)"
-					class="disabled:hover-bg-white my-auto rounded-2xl p-4 hover:bg-neutral-100
-      {!selection ? 'cursor-not-allowed' : 'pointer'} disabled:opacity-50"
-				>
+				<TooltipButton disabled={!selection} tooltip="Box selection (Ctrl+J)">
 					<SquareDashed />
-				</button>
+				</TooltipButton>
 			</Popover.Trigger>
 			<Popover.Content
 				transition={flyAndScale}
@@ -422,24 +587,20 @@
 		</Popover.Root>
 	{/if}
 
-	<button
-		on:click|preventDefault={() => {
+	<TooltipButton
+		onClick={() => {
 			clear_board();
 		}}
-		title="Clear drawing (Ctrl+G)"
-		class="disabled:hover-bg-white pointer my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+		tooltip="Clear drawing (Ctrl+G)"
 	>
 		<Trash2 />
-	</button>
+	</TooltipButton>
 
 	<Popover.Root bind:open={char_popover_open}>
 		<Popover.Trigger>
-			<button
-				title="Special characters"
-				class="disabled:hover-bg-white pointer my-auto rounded-2xl p-4 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-			>
+			<TooltipButton tooltip="Special characters">
 				<List />
-			</button>
+			</TooltipButton>
 		</Popover.Trigger>
 		<Popover.Content
 			transition={flyAndScale}
@@ -462,26 +623,15 @@
 	</Popover.Root>
 </div>
 
-<style>
-	.cursor * {
-		cursor: url('/cursor.png'), auto !important;
-	}
-	.brush * {
-		cursor: url('/brush.png'), auto !important;
-	}
-	.eraser * {
-		cursor: url('/eraser.png'), auto !important;
-	}
-	.select * {
-		cursor: url('/cursor.png'), auto !important;
-	}
-	.pointer {
-		cursor: url('/pointer.png'), auto !important;
-	}
-	.cursor-this {
-		cursor: url('/cursor.png'), auto !important;
-	}
-	.cursor-not-allowed {
-		cursor: url('/cursor-not-allowed.png'), auto !important;
-	}
-</style>
+<Dialog
+	title="Export drawing"
+	bind:open={show_export_popup}
+	closeButtonText="Copy"
+	closeButtonOnClick={() => {
+		navigator.clipboard.writeText(export_string);
+		toast.success('Copied to clipboard.');
+	}}
+>
+	<pre class="mx-auto w-fit rounded-2xl bg-neutral-200 p-4 text-xl">{export_string}</pre>
+	<br />
+</Dialog>

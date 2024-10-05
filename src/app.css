@@ -7,3 +7,25 @@
 * {
 	font-family: 'JetBrains Mono', monospace !important;
 }
+
+.cursor * {
+	cursor: url('/cursor.png'), auto !important;
+}
+.brush * {
+	cursor: url('/brush.png'), auto !important;
+}
+.eraser * {
+	cursor: url('/eraser.png'), auto !important;
+}
+.select * {
+	cursor: url('/cursor.png'), auto !important;
+}
+.pointer {
+	cursor: url('/pointer.png'), auto !important;
+}
+.cursor-this {
+	cursor: url('/cursor.png'), auto !important;
+}
+.cursor-not-allowed {
+	cursor: url('/cursor-not-allowed.png'), auto !important;
+}
