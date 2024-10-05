@@ -9,6 +9,7 @@ There are currently 5 tools:
 - Eraser: Paints the space character (just an eraser).
 - Selector: Allows you to select an area of tiles. When its selected, you can cut, paste, copy, and clear the tiles inside it. You can also draw a box around it.
 - Eyedropper: sets your selected character to that of whatever tiles you click on.
+- Sketch: Press and hold, and move the cursor to one of the adjacent cells, depening on the direction you moved your cursor, it will add a `-`, `|`, `/`, or `\`.
 
 <div class="flex">
 <div class="flex-1" />
