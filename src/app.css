@@ -32,3 +32,6 @@
 .eyedropper * {
 	cursor: url('/pipette.png'), auto !important;
 }
+.sketch * {
+	cursor: url('/pen.png'), auto !important;
+}

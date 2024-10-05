@@ -11,6 +11,7 @@
 		SquareDashed,
 		List,
 		Eraser,
+		Pen,
 		MousePointer2,
 		Home,
 		SquareDashedMousePointer,
@@ -57,7 +58,7 @@
 	let character: string = '-';
 	let character_input_selected: boolean = false;
 	let selected_tool: Tool = 'cursor';
-	type Tool = 'brush' | 'cursor' | 'eraser' | 'select' | 'eyedropper';
+	type Tool = 'brush' | 'cursor' | 'eraser' | 'select' | 'eyedropper' | 'sketch';
 	let is_mouse_down = false;
 	let selection: null | Array<Array<number>> = null;
 	let hovered: Array<number> = [999, 999];
@@ -71,6 +72,7 @@
 	let width_input = 30,
 		height_input = 18;
 	let load_input = '';
+	let sketch_start_pos: number[] | null = [999, 999];
 
 	function clear_board() {
 		tiles = Array(height)
@@ -109,6 +111,10 @@
 			console.log(selection);
 		} else if (selected_tool == 'eyedropper') {
 			character = get(x, y);
+		} else if (selected_tool == 'sketch') {
+			if (!sketch_start_pos) {
+				sketch_start_pos = [x, y];
+			}
 		}
 	}
 
@@ -309,6 +315,25 @@
 		});
 		addEventListener('mouseup', (event) => {
 			is_mouse_down = false;
+
+			if (sketch_start_pos) {
+				let [hy, hx] = hovered;
+				let [sy, sx] = sketch_start_pos;
+
+				if (hx != sx || hy != sy) {
+					if (hy == sy) {
+						set(sy, sx, '-');
+					} else if (hx == sx) {
+						set(sy, sx, '|');
+					} else if ((sx < hx && sy > hy) || (sx > hx && sy < hy)) {
+						set(sy, sx, '/');
+					} else {
+						set(sy, sx, '\\');
+					}
+				}
+			}
+
+			sketch_start_pos = null;
 			if (selected_tool === 'select' && is_selecting) {
 				is_selecting = false;
 			}
@@ -550,10 +575,10 @@
 	</div>
 </div>
 
-<div class="cursor-this fixed bottom-0 left-0 z-10 flex w-full items-center gap-4 bg-white p-8">
+<div class="cursor-this fixed bottom-0 left-0 z-10 flex w-full items-center gap-1 bg-white p-8">
 	<TooltipButton
 		noClass
-		className="pointer rounded-2xl p-3 text-[24px]
+		className="pointer rounded-2xl p-3 text-[24px] mr-3
     {character_input_selected ? '!bg-blue-300' : '!bg-neutral-200'}"
 		onClick={() => {
 			character_input_selected = !character_input_selected;
@@ -563,7 +588,7 @@
 		<pre>{character}</pre>
 	</TooltipButton>
 
-	{#each [['cursor', MousePointer2, 'Ctrl+D'], ['brush', Brush, 'Ctrl+B'], ['eraser', Eraser, 'Ctrl+E'], ['select', SquareDashedMousePointer, 'Ctrl+R'], ['eyedropper', Pipette, 'Ctrl+I']] as [tool, icon, keybind]}
+	{#each [['cursor', MousePointer2, 'Ctrl+D'], ['brush', Brush, 'Ctrl+B'], ['eraser', Eraser, 'Ctrl+E'], ['select', SquareDashedMousePointer, 'Ctrl+R'], ['eyedropper', Pipette, 'Ctrl+I'], ['sketch', Pen, 'Ctrl+S']] as [tool, icon, keybind]}
 		<TooltipButton
 			onClick={() => {
 				change_tool(tool);
