@@ -639,7 +639,7 @@
 				cut_selection();
 			}}
 			disabled={!selection}
-			tooltip="Copy selection (Ctrl+C)"
+			tooltip="Cut selection (Ctrl+X)"
 		>
 			<Scissors />
 		</TooltipButton>
