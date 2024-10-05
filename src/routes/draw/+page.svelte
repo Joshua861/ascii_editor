@@ -765,7 +765,7 @@
 	bind:open={show_import_popup}
 	closeButtonText="Load"
 	closeButtonOnClick={() => {
-		load_input = load_input.replace('\t', '    ').trim();
+		load_input = load_input.replace('\t', '    ');
 		let width = load_input
 			.split('\n')
 			.map((line) => line.length)
