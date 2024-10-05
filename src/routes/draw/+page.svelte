@@ -3,6 +3,9 @@
 	import { boxes } from '$lib/boxes';
 	import {
 		PaintBucket,
+		Pipette,
+		Plus,
+		Download,
 		Upload,
 		Brush,
 		SquareDashed,
@@ -20,7 +23,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
-	import { Popover } from 'bits-ui';
+	import { Popover, Label } from 'bits-ui';
 	import { special_characters } from '$lib/special_characters';
 	import { flyAndScale } from '$lib/fly_and_scale';
 	import TooltipButton from '$lib/tooltip_button.svelte';
@@ -34,6 +37,19 @@
 		width = parseInt($page.url.searchParams.get('width') || '30');
 		height = parseInt($page.url.searchParams.get('height') || '18');
 		clear_board();
+
+		let load = $page.url.searchParams.get('load');
+		if (load) {
+			let lines = load.split('\n');
+
+			let x = 0;
+			for (let line of lines) {
+				for (let y = 0; y < line.length; y++) {
+					set(x, y, line[y]);
+				}
+				x += 1;
+			}
+		}
 	}
 
 	let selected: Array<number> | null = null;
@@ -41,7 +57,7 @@
 	let character: string = '-';
 	let character_input_selected: boolean = false;
 	let selected_tool: Tool = 'cursor';
-	type Tool = 'brush' | 'cursor' | 'eraser' | 'select';
+	type Tool = 'brush' | 'cursor' | 'eraser' | 'select' | 'eyedropper';
 	let is_mouse_down = false;
 	let selection: null | Array<Array<number>> = null;
 	let hovered: Array<number> = [999, 999];
@@ -50,6 +66,11 @@
 	let box_popover_open = false;
 	let export_string = '';
 	let show_export_popup = false;
+	let show_import_popup = false;
+	let show_new_popup = false;
+	let width_input = 30,
+		height_input = 18;
+	let load_input = '';
 
 	function clear_board() {
 		tiles = Array(height)
@@ -86,6 +107,8 @@
 				selection[1] = [x, y];
 			}
 			console.log(selection);
+		} else if (selected_tool == 'eyedropper') {
+			character = get(x, y);
 		}
 	}
 
@@ -293,6 +316,10 @@
 		addEventListener('keydown', (event) => {
 			console.log(event.key);
 
+			if (show_export_popup || show_import_popup || show_new_popup) {
+				return;
+			}
+
 			if (event.key == 'Escape') {
 				event.preventDefault();
 				selected = null;
@@ -346,6 +373,10 @@
 				} else if (event.key === 'y') {
 					event.preventDefault();
 					fill_selection(character);
+					return;
+				} else if (event.key === 'i') {
+					event.preventDefault();
+					change_tool('eyedropper');
 					return;
 				}
 			}
@@ -450,15 +481,35 @@
 	<Home />
 </TooltipButton>
 
-<TooltipButton
-	onClick={() => {
-		open_export_popup();
-	}}
-	title="Export selection (Ctrl+Shift+C)"
-	className="top-4 right-4 fixed"
->
-	<Upload />
-</TooltipButton>
+<div class="fixed right-4 top-4">
+	<TooltipButton
+		onClick={() => {
+			show_new_popup = true;
+		}}
+		tooltip="New drawing (Ctrl+Shift+N)"
+	>
+		<Plus />
+	</TooltipButton>
+
+	<TooltipButton
+		onClick={() => {
+			show_import_popup = true;
+		}}
+		tooltip="Import drawing (Ctrl+Shift+I)"
+	>
+		<Download />
+	</TooltipButton>
+
+	<TooltipButton
+		onClick={() => {
+			open_export_popup();
+		}}
+		disabled={!selection}
+		tooltip="Export selection (Ctrl+Shift+C)"
+	>
+		<Upload />
+	</TooltipButton>
+</div>
 
 <div class="flex h-[100vh] w-[100vw] items-center {selected_tool} cursor-this">
 	<div
@@ -512,7 +563,7 @@
 		<pre>{character}</pre>
 	</TooltipButton>
 
-	{#each [['cursor', MousePointer2, 'Ctrl+D'], ['brush', Brush, 'Ctrl+B'], ['eraser', Eraser, 'Ctrl+E'], ['select', SquareDashedMousePointer, 'Ctrl+R']] as [tool, icon, keybind]}
+	{#each [['cursor', MousePointer2, 'Ctrl+D'], ['brush', Brush, 'Ctrl+B'], ['eraser', Eraser, 'Ctrl+E'], ['select', SquareDashedMousePointer, 'Ctrl+R'], ['eyedropper', Pipette, 'Ctrl+I']] as [tool, icon, keybind]}
 		<TooltipButton
 			onClick={() => {
 				change_tool(tool);
@@ -651,6 +702,70 @@
 		toast.success('Copied to clipboard.');
 	}}
 >
-	<pre class="mx-auto w-fit rounded-2xl bg-neutral-200 p-4 text-xl">{export_string}</pre>
+	<p class="text-xs text-neutral-700">
+		If you're putting this into Google Docs or some other office program, it will probably look
+		weird. Make sure the text is in a monospaced font, and the line-height is set to 1, or 'single'.
+	</p>
 	<br />
+	<pre
+		class="mx-auto w-fit rounded-2xl bg-neutral-200 p-4 text-xl leading-none">{export_string}</pre>
+	<br />
+</Dialog>
+
+<Dialog
+	title="New drawing"
+	bind:open={show_new_popup}
+	closeButtonText="New"
+	closeButtonOnClick={() => {
+		window.location.href = '/draw?width=' + width_input + '&height=' + height_input;
+	}}
+>
+	<div class="flex">
+		<span class="pr-3">Width: </span><input
+			class="flex-1 bg-neutral-100 outline-none"
+			bind:value={width_input}
+		/>
+	</div>
+
+	<div class="flex">
+		<span class="pr-3">Height: </span><input
+			class="flex-1 bg-neutral-100 outline-none"
+			bind:value={height_input}
+		/>
+	</div>
+</Dialog>
+
+<Dialog
+	title="Import drawing"
+	bind:open={show_import_popup}
+	closeButtonText="Load"
+	closeButtonOnClick={() => {
+		load_input = load_input.replace('\t', '    ').trim();
+		let width = load_input
+			.split('\n')
+			.map((line) => line.length)
+			.sort((a, b) => b - a)[0];
+		window.location.href =
+			'/draw?load=' +
+			encodeURIComponent(load_input) +
+			'&width=' +
+			width +
+			'&height=' +
+			load_input.split('\n').length;
+	}}
+>
+	<div>
+		<Label.Root for="load-textarea" class="pr-3">Load:</Label.Root>
+		<br />
+		<br />
+		<textarea
+			id="load-textarea"
+			class="w-full flex-1 rounded-2xl border border-neutral-200 bg-neutral-100 p-4 outline-neutral-300"
+			rows="8"
+			bind:value={load_input}
+		/>
+
+		<br />
+		<br />
+	</div>
 </Dialog>

@@ -29,3 +29,6 @@
 .cursor-not-allowed {
 	cursor: url('/cursor-not-allowed.png'), auto !important;
 }
+.eyedropper * {
+	cursor: url('/pipette.png'), auto !important;
+}

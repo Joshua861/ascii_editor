@@ -3,6 +3,6 @@
 	import '../app.css';
 </script>
 
-<Toaster position="top-right" />
+<Toaster position="top-center" />
 
 <slot></slot>
